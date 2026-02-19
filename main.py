@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import datetime
 import aiohttp
 import io
@@ -33,17 +33,14 @@ async def create_welcome_gif(member):
     font_logo = ImageFont.truetype("Montserrat-Bold.ttf", 110)
     font_link = ImageFont.truetype("Montserrat-Regular.ttf", 22)
 
-    # ---------- SMOOTH GRADIENT BACKGROUND ----------
-    gradient = Image.linear_gradient("L").resize((width, height))
-    gradient = gradient.rotate(45)
-
+    # Smooth gradient background
+    gradient = Image.linear_gradient("L").resize((width, height)).rotate(45)
     base_dark = Image.new("RGBA", (width, height), (15, 0, 35, 255))
     purple_overlay = Image.new("RGBA", (width, height), (100, 0, 180, 200))
-
     base_bg = Image.composite(purple_overlay, base_dark, gradient)
     base_bg = base_bg.filter(ImageFilter.GaussianBlur(2))
 
-    # ---------- AVATAR ----------
+    # Avatar
     async with aiohttp.ClientSession() as session:
         async with session.get(member.display_avatar.url) as resp:
             avatar_bytes = await resp.read()
@@ -59,18 +56,11 @@ async def create_welcome_gif(member):
     member_count = f"Member #{member.guild.member_count}"
     join_time = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M UTC")
 
-    sequences = [
-        ["W","WE","WEL","WELC","WELCO","WELCOM","WELCOME"],
-        ["W","WI","WIL","WILL","WILLK","WILLKO","WILLKOM","WILLKOMM","WILLKOMME","WILLKOMMEN"],
-        ["B","BE","BEN","BENV","BENVE","BENVEN","BENVENU","BENVENUT","BENVENUTO"],
-    ]
+    welcome_words = ["WELCOME", "WILLKOMMEN", "BENVENUTO"]
 
-    typing_speed = 5
-    cycle_lengths = [len(seq) * typing_speed for seq in sequences]
-    total_cycle = sum(cycle_lengths)
-    total_frames = total_cycle + 40
+    total_frames = 240  # smooth loop
 
-    # ---------- PRE-RENDER LOGO GLOW ----------
+    # Pre-render logo glow
     logo_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     logo_draw = ImageDraw.Draw(logo_layer)
 
@@ -82,20 +72,18 @@ async def create_welcome_gif(member):
     as_x = width - as_total_width - 120
     as_y = 40
 
-    logo_draw.text((as_x, as_y - 12), "A",
-                   font=font_logo, fill=(255, 255, 255, 220))
+    logo_draw.text((as_x, as_y - 12), "A", font=font_logo, fill=(255, 255, 255, 220))
     logo_draw.text((as_x + a_width + letter_spacing, as_y),
                    "S", font=font_logo, fill=(255, 255, 255, 220))
 
     logo_glow = logo_layer.filter(ImageFilter.GaussianBlur(35))
 
-    # ---------- FRAME LOOP ----------
     spacing = 60
 
     for frame in range(total_frames):
         img = base_bg.copy()
 
-        # ----- XO Pattern (SMOOTH SCROLL) -----
+        # XO Pattern
         pattern_layer = Image.new("RGBA", (width * 2, height), (0, 0, 0, 0))
         p_draw = ImageDraw.Draw(pattern_layer)
 
@@ -110,54 +98,80 @@ async def create_welcome_gif(member):
 
         draw = ImageDraw.Draw(img)
 
-        # ----- Glass Panel -----
+        # Glass panel
         panel = Image.new("RGBA", (720, 240), (255, 255, 255, 30))
         panel = panel.filter(ImageFilter.GaussianBlur(8))
         img.paste(panel, (40, 50), panel)
 
-        # ----- Typing Animation -----
-        cycle_frame = frame % total_cycle
-        cumulative = 0
+        # ---------- ULTRA SMOOTH TYPEWRITER ----------
+        word_index = (frame // 80) % len(welcome_words)
+        current_word = welcome_words[word_index]
 
-        for seq, seq_length in zip(sequences, cycle_lengths):
-            if cycle_frame < cumulative + seq_length:
-                local_frame = cycle_frame - cumulative
-                letter_index = min(len(seq)-1, local_frame // typing_speed)
-                welcome_text = seq[letter_index]
-                break
-            cumulative += seq_length
+        cycle = frame % 80
 
-        fade_alpha = min(255, frame * 15)
-        slide_offset = max(0, 20 - frame)
+        # Ease-in typing
+        typed_length = int(len(current_word) *
+                           min(1, (cycle / 40) ** 1.5))
 
-        draw.text((80, 80 - slide_offset),
-                  welcome_text,
+        display_text = current_word[:typed_length]
+
+        # Hold full word
+        if cycle > 45:
+            display_text = current_word
+
+        # Delete smoothly
+        if cycle > 60:
+            delete_progress = int((cycle - 60) * 1.2)
+            display_text = current_word[:max(0, len(current_word) - delete_progress)]
+
+        # Modern blinking cursor
+        if (frame // 10) % 2 == 0:
+            display_text += "│"
+
+        # Glow pulse when completed
+        pulse = 0
+        if typed_length == len(current_word):
+            pulse = int(50 * abs(math.sin(frame * 0.2)))
+
+        # Micro shake on completion
+        shake_x = 0
+        shake_y = 0
+        if typed_length == len(current_word):
+            shake_x = math.sin(frame * 2) * 1.5
+            shake_y = math.cos(frame * 2) * 1.5
+
+        # Draw glow text
+        glow_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        glow_draw = ImageDraw.Draw(glow_layer)
+        glow_draw.text((80 + shake_x, 80 + shake_y),
+                       display_text,
+                       font=font_title,
+                       fill=(255, 255, 255, 180 + pulse))
+        glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(8))
+        img = Image.alpha_composite(img, glow_layer)
+
+        draw = ImageDraw.Draw(img)
+        draw.text((80 + shake_x, 80 + shake_y),
+                  display_text,
                   font=font_title,
-                  fill=(255, 255, 255, fade_alpha))
+                  fill=(255, 255, 255))
 
-        # ----- Avatar Shadow -----
+        # Avatar shadow
         shadow = Image.new("RGBA", (150, 150), (0, 0, 0, 180))
         shadow = shadow.filter(ImageFilter.GaussianBlur(20))
         img.paste(shadow, (50, 180), shadow)
-
         img.paste(avatar, (60, 170), avatar)
 
-        # ----- User Info -----
-        draw.text((220, 180), username,
-                  font=font_user, fill=(255, 255, 255))
+        # User info
+        draw.text((220, 180), username, font=font_user, fill=(255, 255, 255))
+        draw.text((220, 230), member_count, font=font_small, fill=(230, 230, 255))
+        draw.text((220, 260), join_time, font=font_small, fill=(230, 230, 255))
 
-        draw.text((220, 230), member_count,
-                  font=font_small, fill=(230, 230, 255))
-
-        draw.text((220, 260), join_time,
-                  font=font_small, fill=(230, 230, 255))
-
-        # ----- Logo Glow -----
+        # Logo
         img = Image.alpha_composite(img, logo_glow)
         draw = ImageDraw.Draw(img)
 
-        draw.text((as_x, as_y - 12), "A",
-                  font=font_logo, fill=(255, 255, 255))
+        draw.text((as_x, as_y - 12), "A", font=font_logo, fill=(255, 255, 255))
         draw.text((as_x + a_width + letter_spacing, as_y),
                   "S", font=font_logo, fill=(255, 255, 255))
 
@@ -174,7 +188,7 @@ async def create_welcome_gif(member):
         gif_path,
         save_all=True,
         append_images=frames[1:],
-        duration=33,  # 30 FPS smooth
+        duration=33,
         loop=0,
         disposal=2,
         optimize=True
@@ -186,7 +200,6 @@ async def create_welcome_gif(member):
 @bot.event
 async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL_ID)
-
     gif = await create_welcome_gif(member)
 
     await channel.send(
