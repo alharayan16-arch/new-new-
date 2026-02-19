@@ -174,7 +174,7 @@ async def create_welcome_gif(member):
         gif_path,
         save_all=True,
         append_images=frames[1:],
-        duration=60,
+        duration=80,
         loop=0,
         disposal=2,
         optimize=True
