@@ -62,9 +62,9 @@ async def create_welcome_gif(member):
     for y in range(height):
         for x in range(width):
             ratio = (x + y) / (width + height)
-            r = int(55 - ratio * 30)
-            g = 0
-            b = int(105 - ratio * 50)
+            r = int(150 - ratio * 110)
+            g = int(60 - ratio * 60) 
+            b = int(200 - ratio * 50)
             bg_draw.point((x, y), fill=(r, g, b))
 
     base_bg = base_bg.convert("RGBA")
