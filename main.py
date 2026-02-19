@@ -8,7 +8,7 @@ import os
 import math
 
 TOKEN = os.getenv("TOKEN")
-WELCOME_CHANNEL_ID = 1472224372382109905
+WELCOME_CHANNEL_ID = 1468431324539781145
 
 intents = discord.Intents.default()
 intents.members = True
