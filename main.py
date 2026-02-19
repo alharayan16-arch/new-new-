@@ -58,7 +58,7 @@ async def create_welcome_gif(member):
 
     welcome_words = ["WELCOME", "WILLKOMMEN", "BENVENUTO"]
 
-    total_frames = 240  # smooth loop
+    total_frames = 120  # smooth loop
 
     # Pre-render logo glow
     logo_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -188,7 +188,7 @@ async def create_welcome_gif(member):
         gif_path,
         save_all=True,
         append_images=frames[1:],
-        duration=33,
+        duration=55,
         loop=0,
         disposal=2,
         optimize=True
