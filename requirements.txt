@@ -1,0 +1,5 @@
+discord.py
+Pillow
+aiohttp
+arabic-reshaper
+python-bidi
